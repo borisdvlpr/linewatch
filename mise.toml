@@ -1,0 +1,12 @@
+# mise.toml — Development environment for the terraform-blueprints project
+# https://mise.jdx.dev
+#
+# Install mise, then from this directory:
+#   mise trust
+#   mise install
+
+[tools]
+terraform = "latest"
+
+[shell_alias]
+tf = "terraform"
