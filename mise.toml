@@ -1,12 +1,31 @@
-# mise.toml — Development environment for the terraform-blueprints project
+# mise.toml — Development environment for the linewatch project
 # https://mise.jdx.dev
 #
 # Install mise, then from this directory:
 #   mise trust
 #   mise install
+#   mise run check   # the same format and validation checks as CI
+#   mise run fmt     # format all Terraform files
+
+[settings]
+# Create and update mise.lock, which records the exact Terraform version.
+lockfile = true
 
 [tools]
-terraform = "latest"
+terraform = "1.16"
 
 [shell_alias]
 tf = "terraform"
+
+[tasks.fmt]
+description = "Format all Terraform files"
+run = "terraform fmt -recursive"
+
+[tasks.check]
+description = "Run the same format and validation checks as CI"
+run = [
+  "terraform fmt -check -recursive -diff",
+  "terraform init -backend=false -input=false",
+  "terraform validate",
+]
+
