@@ -24,6 +24,17 @@ variable "state_bucket_name" {
   }
 }
 
+variable "noncurrent_version_retention_days" {
+  description = "Days S3 keeps noncurrent object versions (earlier state revisions and lock-file history) before deleting them."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = var.noncurrent_version_retention_days >= 1 && floor(var.noncurrent_version_retention_days) == var.noncurrent_version_retention_days
+    error_message = "The noncurrent_version_retention_days value must be a whole number of at least 1."
+  }
+}
+
 variable "tags" {
   description = "Tags applied to every resource through the provider's default_tags."
   type        = map(string)

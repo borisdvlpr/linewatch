@@ -73,3 +73,28 @@ resource "aws_s3_bucket_policy" "state_bucket" {
   policy     = data.aws_iam_policy_document.state_bucket.json
   depends_on = [aws_s3_bucket_public_access_block.state_bucket]
 }
+
+resource "aws_s3_bucket_lifecycle_configuration" "state_bucket" {
+  bucket = aws_s3_bucket.state_bucket.id
+
+  rule {
+    id     = "clean-up-old-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.noncurrent_version_retention_days
+    }
+
+    expiration {
+      expired_object_delete_marker = true
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.state_bucket]
+}
