@@ -1,3 +1,3 @@
-bucket = "terraform-state-123456789012-eu-central-1-an"
-key    = "bootstrap/terraform.tfstate"
+bucket = "terraform-state-542850952766-eu-central-1"
+key    = "linewatch/account/terraform.tfstate"
 region = "eu-central-1"
