@@ -12,7 +12,7 @@ output "backend_config" {
   description = "Contents for env/<region>.s3.tfbackend: terraform output -raw backend_config > env/<region>.s3.tfbackend"
   value       = <<-EOT
     bucket = "${aws_s3_bucket.state_bucket.id}"
-    key    = "bootstrap/terraform.tfstate"
+    key    = "linewatch/account/terraform.tfstate"
     region = "${var.aws_region}"
   EOT
 }

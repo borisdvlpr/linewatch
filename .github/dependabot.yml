@@ -13,10 +13,19 @@ updates:
         patterns:
           - "*"
 
-  # AWS provider: the constraint in terraform.tf and .terraform.lock.hcl.
+  # AWS provider: the constraint in each stack's terraform.tf and .terraform.lock.hcl.
+  # group-by puts one provider bump across every stack into a single PR, so the
+  # stacks stay on the same version.
   - package-ecosystem: terraform
-    directory: /
+    directories:
+      - /live/account
+      - /live/dev/ingest
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      terraform:
+        patterns:
+          - "*"
+        group-by: dependency-name

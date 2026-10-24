@@ -1,0 +1,3 @@
+bucket = "terraform-state-542850952766-eu-central-1-an"
+key    = "linewatch/dev/ingest/terraform.tfstate"
+region = "eu-central-1"

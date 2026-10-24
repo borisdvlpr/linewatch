@@ -35,6 +35,27 @@ variable "noncurrent_version_retention_days" {
   }
 }
 
+variable "budget_email" {
+  description = "Email address that receives the monthly cost budget notifications."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.budget_email))
+    error_message = "The budget_email value must be an email address."
+  }
+}
+
+variable "budget_limit_usd" {
+  description = "Monthly cost budget in US dollars. Notifications fire at 80% actual and 100% forecasted spend."
+  type        = string
+  default     = "1"
+
+  validation {
+    condition     = try(tonumber(var.budget_limit_usd) > 0, false)
+    error_message = "The budget_limit_usd value must be a positive number."
+  }
+}
+
 variable "tags" {
   description = "Tags applied to every resource through the provider's default_tags."
   type        = map(string)

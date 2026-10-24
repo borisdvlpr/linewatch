@@ -25,7 +25,14 @@ run = "terraform fmt -recursive"
 description = "Run the same format and validation checks as CI"
 run = [
   "terraform fmt -check -recursive -diff",
-  "terraform init -backend=false -input=false",
-  "terraform validate",
+  # A separate data directory, like CI's fresh checkout: in a stack already
+  # initialised against S3, init -backend=false still needs AWS credentials.
+  """
+  export TF_DATA_DIR=.terraform/check
+  for d in live/account live/dev/ingest; do
+    terraform -chdir="$d" init -backend=false -input=false
+    terraform -chdir="$d" validate
+  done
+  """,
 ]
 
