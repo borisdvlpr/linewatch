@@ -13,6 +13,7 @@ lockfile = true
 
 [tools]
 terraform = "1.16"
+go = "1.27"
 
 [shell_alias]
 tf = "terraform"
