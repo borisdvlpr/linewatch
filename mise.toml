@@ -6,6 +6,7 @@
 #   mise install
 #   mise run check   # the same format and validation checks as CI
 #   mise run fmt     # format all Terraform files
+#   mise run build   # build the Lambda functions; run it before terraform plan
 
 [settings]
 # Create and update mise.lock, which records the exact Terraform version.
@@ -21,6 +22,18 @@ tf = "terraform"
 [tasks.fmt]
 description = "Format all Terraform files"
 run = "terraform fmt -recursive"
+
+[tasks.build]
+description = "Build the Lambda functions into live/dev/ingest/.build/<function>/bootstrap"
+dir = "live/dev/ingest/functions"
+env = { GOOS = "linux", GOARCH = "arm64", CGO_ENABLED = "0" }
+# -trimpath and -buildvcs=false keep the binary identical across machines and
+# commits, so source_code_hash only changes when the code does.
+run = """
+for fn in simulator processor; do
+  go build -trimpath -buildvcs=false -ldflags='-s -w' -tags lambda.norpc -o "../.build/$fn/bootstrap" "./$fn"
+done
+"""
 
 [tasks.check]
 description = "Run the same format and validation checks as CI"
