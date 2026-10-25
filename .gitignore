@@ -39,6 +39,35 @@ tfplan.txt
 .terraformrc
 terraform.rc
 
+# Lambda binaries and zips built by mise run build and archive_file
+.build/
+
+# binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin
+dist/
+
+# test binary, built with `go test -c`
+*.test
+*-test.yaml
+
+# output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+
 # editor
 .idea
 .vscode
