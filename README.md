@@ -13,6 +13,12 @@ The codebase grows along four largely independent axes:
 
 Every service stays within the AWS free tier. The cost rules are enforced in code where possible: provisioned DynamoDB capacity, at most 10 alarms and 10 custom metrics, and no NAT gateways, EC2, RDS, customer-managed KMS keys or Secrets Manager.
 
+## Requirements
+
+- [mise](https://mise.jdx.dev), which installs the Terraform version pinned in `mise.toml`. Any Terraform `~> 1.16` also works.
+- AWS CLI v2, signed in to the target account with permission to manage S3, DynamoDB, SNS and Budgets.
+- An email address for the budget and alert notifications.
+
 ## Folder structure
 
 ```text
@@ -28,6 +34,50 @@ linewatch/
 ```
 
 Every root module has the same scaffolding: `terraform.tf`, `backend.tf`, `env/<region>.s3.tfbackend`, `providers.tf` and a committed `.terraform.lock.hcl`. Variables without defaults, such as notification emails, go in a gitignored `terraform.tfvars`.  Each stack's `terraform.tfvars.example` shows what to fill in.
+
+## Usage
+
+### Check
+
+Run the same format and validation checks as CI. They need no AWS credentials:
+
+```sh
+mise trust
+mise install
+mise run check
+```
+
+### Deploy
+
+Apply the stacks in order, `live/account` first, so the budget exists before anything billable. For each stack:
+
+```sh
+cd live/<stack>
+cp terraform.tfvars.example terraform.tfvars   # fill in the email
+terraform init -backend-config=env/eu-central-1.s3.tfbackend -lockfile=readonly
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+Read the plan before applying it. Applying the saved `tfplan` applies exactly what was reviewed, and Terraform refuses it if the state has changed since. `init` is only needed the first time and after provider changes.
+
+After the first apply of `live/dev/ingest`, accept the SNS subscription email. Alerts are not delivered until the subscription is confirmed.
+
+### First-time bootstrap
+
+In a new account the state bucket doesn't exist yet, so `live/account` has to create it with local state first and then move its state into it:
+
+```sh
+cd live/account
+printf 'terraform {\n  backend "local" {}\n}\n' > backend_override.tf   # gitignored
+terraform init
+terraform apply
+terraform output -raw backend_config > env/eu-central-1.s3.tfbackend
+rm backend_override.tf
+terraform init -migrate-state -backend-config=env/eu-central-1.s3.tfbackend
+```
+
+Once the state is in the bucket, delete the local `terraform.tfstate`. Then update the `bucket` line in every other stack's `env/eu-central-1.s3.tfbackend` to the new bucket name.
 
 ## State layout
 
