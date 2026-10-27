@@ -2,15 +2,7 @@
 
 linewatch is a small serverless factory telemetry pipeline. A scheduled simulator writes CSV batches of production-line readings (temperature, cycle time, reject rate) to an S3 landing bucket. A processor validates the readings, stores them in DynamoDB and emits per-line metrics, and CloudWatch alarms notify the line's owner through SNS.
 
-```text
-EventBridge Scheduler ──▶ simulator Lambda ──▶ S3 landing bucket
-                                                     │ ObjectCreated
-                                                     ▼
-                                          processor Lambda ──▶ DynamoDB readings
-                                                     │              (TTL)
-                                                     ├──▶ CloudWatch metrics ──▶ alarms ──▶ SNS
-                                                     └──▶ SQS dead-letter queue
-```
+![Linewatch Diagram](./assets/linewatch_diagram.png)
 
 The codebase grows along four largely independent axes:
 
