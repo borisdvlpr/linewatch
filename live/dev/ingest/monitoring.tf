@@ -105,3 +105,38 @@ resource "aws_cloudwatch_metric_alarm" "line" {
     }
   }
 }
+
+# Alarm states first, then one graph per watched metric with a line for each
+# watching line's limit. Widgets without x and y are laid out automatically.
+resource "aws_cloudwatch_dashboard" "lines" {
+  dashboard_name = "${local.name_prefix}-lines"
+  dashboard_body = jsonencode({
+    widgets = concat(
+      length(aws_cloudwatch_metric_alarm.line) == 0 ? [] : [{
+        type   = "alarm"
+        width  = 24
+        height = 2
+        properties = {
+          title  = "Lines out of spec"
+          alarms = [for alarm in aws_cloudwatch_metric_alarm.line : alarm.arn]
+        }
+      }],
+      [for metric in distinct([for pair in values(local.watched) : pair.metric]) : {
+        type   = "metric"
+        width  = 8
+        height = 6
+        properties = {
+          title   = metric
+          region  = var.aws_region
+          view    = "timeSeries"
+          stat    = "Maximum"
+          period  = 1800
+          metrics = [for pair in values(local.watched) : [local.metric_namespace, metric, "line_id", pair.line_id] if pair.metric == metric]
+          annotations = {
+            horizontal = [for pair in values(local.watched) : { label = "${pair.line_id} limit", value = local.line_limits[pair.line_id][metric] } if pair.metric == metric]
+          }
+        }
+      }],
+    )
+  })
+}
