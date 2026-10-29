@@ -104,6 +104,8 @@ aws cloudwatch set-alarm-state --alarm-name linewatch-dev-line-1-out-of-spec \
   --state-value ALARM --state-reason "Testing notifications"
 ```
 
+The line resources use `for_each`, so Terraform tracks each one by name, such as `reading["line-2/reject_rate"]`. With `count` it would track them by number instead: `reading[0]`, `reading[1]`, and so on. Removing `line-1` would then renumber every filter after it, and the plan would show changes to line-2 and line-3 even though only line-1 was removed. With `for_each`, the plan only removes line-1's filters.
+
 ## State layout
 
 Each directory under `live/` is one root module with its own state file. Every state file lives in the same S3 bucket, which `live/account` manages, and the stacks differ only in the `key` line of `env/<region>.s3.tfbackend`:
