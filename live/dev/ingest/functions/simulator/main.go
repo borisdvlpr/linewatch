@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -18,14 +19,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-var lines = []string{"line-1", "line-2", "line-3"}
-
-// Three lines of five readings stay well inside the readings table's 5 WCU.
+// Five readings per line keep a batch of a few lines well inside the readings
+// table's 5 WCU.
 const readingsPerLine = 5
 
 var (
 	client *s3.Client
 	bucket = os.Getenv("BUCKET_NAME")
+	lines  = strings.Split(os.Getenv("LINES"), ",")
 )
 
 func main() {
