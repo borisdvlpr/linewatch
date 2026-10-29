@@ -1,2 +1,15 @@
 # copy to terraform.tfvars (gitignored) and fill the email
 alert_email = "name@email.com"
+
+# Optional: replaces the whole default lines map in variables.tf. Each threshold
+# is an upper limit, and the free tier allows 10 across the account.
+# lines = {
+#   line-1 = {
+#     owner_email = "owner@email.com"
+#     criticality = "critical"
+#     thresholds  = { temperature_c = 78, cycle_time_s = 34, reject_rate = 0.05 }
+#   }
+#   line-2 = {
+#     thresholds = { reject_rate = 0.05 }
+#   }
+# }

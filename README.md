@@ -29,13 +29,29 @@ linewatch/
 ├── live/                  # root modules: one directory = one state file
 │   ├── account/           # account-wide singletons: state bucket, budget
 │   └── dev/
-│       └── ingest/        # alerts topic, landing bucket, readings table
+│       └── ingest/        # alerts topic, landing bucket, readings table, line alarms and dashboard
 └── mise.toml              # pinned Terraform; `mise run check` runs the CI format and validation checks
 ```
 
 Every root module has the same scaffolding: `terraform.tf`, `backend.tf`, `env/<region>.s3.tfbackend`, `providers.tf` and a committed `.terraform.lock.hcl`. Variables without defaults, such as notification emails, go in a gitignored `terraform.tfvars`.  Each stack's `terraform.tfvars.example` shows what to fill in.
 
 ## Usage
+
+### First-time bootstrap
+
+In a new account the state bucket doesn't exist yet, so `live/account` has to create it with local state first and then move its state into it:
+
+```sh
+cd live/account
+printf 'terraform {\n  backend "local" {}\n}\n' > backend_override.tf   # gitignored
+terraform init
+terraform apply
+terraform output -raw backend_config > env/eu-central-1.s3.tfbackend
+rm backend_override.tf
+terraform init -migrate-state -backend-config=env/eu-central-1.s3.tfbackend
+```
+
+Once the state is in the bucket, delete the local `terraform.tfstate`. Then update the `bucket` line in every other stack's `env/eu-central-1.s3.tfbackend` to the new bucket name.
 
 ### Check
 
@@ -63,21 +79,32 @@ Read the plan before applying it. Applying the saved `tfplan` applies exactly wh
 
 After the first apply of `live/dev/ingest`, accept the SNS subscription email. Alerts are not delivered until the subscription is confirmed.
 
-### First-time bootstrap
+### Monitoring
 
-In a new account the state bucket doesn't exist yet, so `live/account` has to create it with local state first and then move its state into it:
+Production lines are described once, in the `lines` variable of `live/dev/ingest`. The simulator writes readings for every line, and each line's thresholds generate its monitoring:
+
+- One metric filter per threshold turns the processor's JSON log lines into a `linewatch/dev` metric with a `line_id` dimension.
+- One alarm per line watches its worst metric as a fraction of that metric's limit. It notifies the alerts topic and, if set, the line's `owner_email` on a topic of its own. A `critical` line alarms on the first batch out of spec and reports recovery. A `standard` line alarms on the second batch in a row.
+- A dashboard graphs each metric against the lines' limits. `terraform output dashboard_url` prints its address.
+
+The free tier covers 10 custom metrics and 10 alarm metrics per account. Every threshold uses one of each, because an alarm on three metrics is billed as three alarm metrics. A validation fails the plan above 10 thresholds. Lines without thresholds cost nothing.
+
+To change the lines, set `lines` in `terraform.tfvars`, as `terraform.tfvars.example` shows. It replaces the whole default map. Each new owner gets a subscription email to accept.
+
+To see an alarm fire, lower a limit below what the simulator produces, such as `temperature_c = 60`, apply, and invoke the simulator instead of waiting for the next batch:
 
 ```sh
-cd live/account
-printf 'terraform {\n  backend "local" {}\n}\n' > backend_override.tf   # gitignored
-terraform init
-terraform apply
-terraform output -raw backend_config > env/eu-central-1.s3.tfbackend
-rm backend_override.tf
-terraform init -migrate-state -backend-config=env/eu-central-1.s3.tfbackend
+aws lambda invoke --function-name "$(terraform output -raw simulator_function_name)" /dev/null
 ```
 
-Once the state is in the bucket, delete the local `terraform.tfstate`. Then update the `bucket` line in every other stack's `env/eu-central-1.s3.tfbackend` to the new bucket name.
+To test only the notifications:
+
+```sh
+aws cloudwatch set-alarm-state --alarm-name linewatch-dev-line-1-out-of-spec \
+  --state-value ALARM --state-reason "Testing notifications"
+```
+
+The line resources use `for_each`, so Terraform tracks each one by name, such as `reading["line-2/reject_rate"]`. With `count` it would track them by number instead: `reading[0]`, `reading[1]`, and so on. Removing `line-1` would then renumber every filter after it, and the plan would show changes to line-2 and line-3 even though only line-1 was removed. With `for_each`, the plan only removes line-1's filters.
 
 ## State layout
 
@@ -86,7 +113,7 @@ Each directory under `live/` is one root module with its own state file. Every s
 | Stack | State key | Holds |
 |---|---|---|
 | `live/account` | `linewatch/account/terraform.tfstate` | account-wide singletons: state bucket, budget |
-| `live/dev/ingest` | `linewatch/dev/ingest/terraform.tfstate` | the dev pipeline: SNS, S3 landing bucket, DynamoDB |
+| `live/dev/ingest` | `linewatch/dev/ingest/terraform.tfstate` | the dev pipeline: SNS, S3 landing bucket, DynamoDB, CloudWatch alarms and dashboard |
 
 A single state file would be simpler. Separate files were chosen anyway, for these reasons:
 

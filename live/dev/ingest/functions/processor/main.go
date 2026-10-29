@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -84,6 +85,17 @@ func process(ctx context.Context, bucket, encodedKey string) error {
 		if _, err := db.PutItem(ctx, &dynamodb.PutItemInput{TableName: aws.String(table), Item: item}); err != nil {
 			return fmt.Errorf("put reading from %s: %w", key, err)
 		}
+	}
+
+	// One JSON line per stored reading, for the monitoring metric filters to
+	// match. It goes to stdout because log.Printf's date prefix isn't JSON.
+	enc := json.NewEncoder(os.Stdout)
+	for _, item := range items {
+		reading := map[string]any{"line_id": item["line_id"].(*types.AttributeValueMemberS).Value}
+		for _, name := range header[2:] {
+			reading[name] = json.Number(item[name].(*types.AttributeValueMemberN).Value)
+		}
+		enc.Encode(reading)
 	}
 	log.Printf("stored %d readings from %s", len(items), key)
 	return nil

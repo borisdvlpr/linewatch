@@ -61,6 +61,7 @@ resource "aws_lambda_function" "simulator" {
   environment {
     variables = {
       BUCKET_NAME = aws_s3_bucket.landing.id
+      LINES       = join(",", keys(var.lines))
     }
   }
 
