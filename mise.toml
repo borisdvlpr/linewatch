@@ -24,8 +24,8 @@ description = "Format all Terraform files"
 run = "terraform fmt -recursive"
 
 [tasks.build]
-description = "Build the Lambda functions into live/dev/ingest/.build/<function>/bootstrap"
-dir = "live/dev/ingest/functions"
+description = "Build the Lambda functions into modules/ingest/.build/<function>/bootstrap"
+dir = "modules/ingest/functions"
 env = { GOOS = "linux", GOARCH = "arm64", CGO_ENABLED = "0" }
 # -trimpath and -buildvcs=false keep the binary identical across machines and
 # commits, so source_code_hash only changes when the code does.

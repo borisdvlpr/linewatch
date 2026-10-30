@@ -35,7 +35,7 @@ resource "aws_cloudwatch_log_metric_filter" "reading" {
   for_each = local.watched
 
   name           = "${local.name_prefix}-${each.value.line_id}-${each.value.metric}"
-  log_group_name = aws_cloudwatch_log_group.processor.name
+  log_group_name = module.ingest.processor_log_group_name
   pattern        = "{ $.line_id = \"${each.value.line_id}\" }"
 
   metric_transformation {

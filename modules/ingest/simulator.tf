@@ -8,7 +8,7 @@ data "archive_file" "simulator" {
 }
 
 resource "aws_cloudwatch_log_group" "simulator" {
-  name              = "/aws/lambda/${local.name_prefix}-simulator"
+  name              = "/aws/lambda/${var.name_prefix}-simulator"
   retention_in_days = 3
 }
 
@@ -24,7 +24,7 @@ data "aws_iam_policy_document" "lambda_assume" {
 }
 
 resource "aws_iam_role" "simulator" {
-  name               = "${local.name_prefix}-simulator"
+  name               = "${var.name_prefix}-simulator"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
@@ -49,7 +49,7 @@ resource "aws_iam_role_policy" "simulator" {
 }
 
 resource "aws_lambda_function" "simulator" {
-  function_name    = "${local.name_prefix}-simulator"
+  function_name    = "${var.name_prefix}-simulator"
   role             = aws_iam_role.simulator.arn
   runtime          = "provided.al2023"
   architectures    = ["arm64"]
@@ -61,7 +61,7 @@ resource "aws_lambda_function" "simulator" {
   environment {
     variables = {
       BUCKET_NAME = aws_s3_bucket.landing.id
-      LINES       = join(",", keys(var.lines))
+      LINES       = join(",", var.line_ids)
     }
   }
 
@@ -89,7 +89,7 @@ data "aws_iam_policy_document" "scheduler_assume" {
 }
 
 resource "aws_iam_role" "simulator_schedule" {
-  name               = "${local.name_prefix}-simulator-schedule"
+  name               = "${var.name_prefix}-simulator-schedule"
   assume_role_policy = data.aws_iam_policy_document.scheduler_assume.json
 }
 
@@ -108,7 +108,7 @@ resource "aws_iam_role_policy" "simulator_schedule" {
 }
 
 resource "aws_scheduler_schedule" "simulator" {
-  name                = "${local.name_prefix}-simulator"
+  name                = "${var.name_prefix}-simulator"
   schedule_expression = "rate(30 minutes)"
 
   flexible_time_window {

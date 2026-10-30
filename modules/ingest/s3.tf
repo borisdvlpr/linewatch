@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "landing" {
-  bucket           = "${local.name_prefix}-landing-${local.account_regional_suffix}"
+  bucket           = "${var.name_prefix}-landing-${local.account_regional_suffix}"
   bucket_namespace = "account-regional"
 }
 
