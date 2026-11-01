@@ -12,11 +12,6 @@ variable "aws_region" {
 variable "alert_email" {
   description = "Email address subscribed to the alerts topic. The subscription stays pending until the confirmation email is accepted."
   type        = string
-
-  validation {
-    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
-    error_message = "The alert_email value must be an email address."
-  }
 }
 
 variable "lines" {
@@ -57,33 +52,6 @@ variable "lines" {
         reject_rate = 0.05
       }
     }
-  }
-
-  validation {
-    condition     = length(var.lines) > 0 && alltrue([for id in keys(var.lines) : can(regex("^[a-z0-9-]+$", id))])
-    error_message = "The lines value must have at least one line, and line IDs may contain only lowercase letters, digits and hyphens."
-  }
-
-  validation {
-    condition     = alltrue([for line in values(var.lines) : line.owner_email == null || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", line.owner_email))])
-    error_message = "Each owner_email in lines must be an email address."
-  }
-
-  validation {
-    condition     = alltrue([for line in values(var.lines) : contains(["standard", "critical"], line.criticality)])
-    error_message = "Each criticality in lines must be standard or critical."
-  }
-
-  validation {
-    condition     = alltrue(flatten([for line in values(var.lines) : [for limit in values(line.thresholds) : limit > 0 if limit != null]]))
-    error_message = "Each threshold in lines must be greater than zero."
-  }
-
-  # The always-free tier covers 10 custom metrics and 10 alarm metrics per
-  # account, and every threshold uses one of each.
-  validation {
-    condition     = length(flatten([for line in values(var.lines) : [for limit in values(line.thresholds) : limit if limit != null]])) <= 10
-    error_message = "The lines value sets ${length(flatten([for line in values(var.lines) : [for limit in values(line.thresholds) : limit if limit != null]]))} thresholds, but the free tier allows 10 across the account: each threshold uses one custom metric and one alarm metric."
   }
 }
 

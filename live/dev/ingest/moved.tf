@@ -1,5 +1,6 @@
-# The pipeline moved into modules/ingest. These blocks move its state to the
-# new addresses, so the refactor plans with no changes.
+# The pipeline moved into modules/ingest and its monitoring into modules/monitoring.
+# These blocks move their state to the new addresses, so the refactor plans with
+# no changes.
 
 moved {
   from = aws_s3_bucket.landing
@@ -109,4 +110,39 @@ moved {
 moved {
   from = aws_s3_bucket_notification.landing
   to   = module.ingest.aws_s3_bucket_notification.landing
+}
+
+moved {
+  from = aws_sns_topic.alerts
+  to   = module.monitoring.aws_sns_topic.alerts
+}
+
+moved {
+  from = aws_sns_topic_subscription.alert_email
+  to   = module.monitoring.aws_sns_topic_subscription.alert_email
+}
+
+moved {
+  from = aws_cloudwatch_log_metric_filter.reading
+  to   = module.monitoring.aws_cloudwatch_log_metric_filter.reading
+}
+
+moved {
+  from = aws_sns_topic.owner
+  to   = module.monitoring.aws_sns_topic.owner
+}
+
+moved {
+  from = aws_sns_topic_subscription.owner
+  to   = module.monitoring.aws_sns_topic_subscription.owner
+}
+
+moved {
+  from = aws_cloudwatch_metric_alarm.line
+  to   = module.monitoring.aws_cloudwatch_metric_alarm.line
+}
+
+moved {
+  from = aws_cloudwatch_dashboard.lines
+  to   = module.monitoring.aws_cloudwatch_dashboard.lines
 }
