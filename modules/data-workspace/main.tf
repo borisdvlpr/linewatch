@@ -1,7 +1,6 @@
 locals {
-  prefix              = "studies/${var.study_id}/"
-  bucket_name         = element(split(":", var.bucket_arn), 5)
-  data_classification = coalesce(var.data_classification, var.classification)
+  prefix      = "studies/${var.study_id}/"
+  bucket_name = element(split(":", var.bucket_arn), 5)
 }
 
 data "aws_iam_policy_document" "assume" {
@@ -21,7 +20,7 @@ resource "aws_iam_role" "workspace" {
 
   tags = {
     Study              = var.study_id
-    DataClassification = local.data_classification
+    DataClassification = var.data_classification
   }
 }
 

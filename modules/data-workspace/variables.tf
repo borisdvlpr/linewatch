@@ -21,29 +21,10 @@ variable "bucket_arn" {
 variable "data_classification" {
   description = "Data classification of the study: public, internal, confidential or restricted."
   type        = string
-  default     = null
 
   validation {
-    condition     = var.data_classification == null || contains(["public", "internal", "confidential", "restricted"], var.data_classification)
+    condition     = contains(["public", "internal", "confidential", "restricted"], var.data_classification)
     error_message = "The data_classification value must be public, internal, confidential or restricted."
-  }
-
-  # Optional only while callers move off classification.
-  validation {
-    condition     = (var.data_classification == null) != (var.classification == null)
-    error_message = "Set data_classification, and not the deprecated classification as well."
-  }
-}
-
-variable "classification" {
-  description = "Deprecated: use data_classification."
-  type        = string
-  default     = null
-  deprecated  = "Use data_classification instead. The data-workspace module removes classification in v2.0.0."
-
-  validation {
-    condition     = var.classification == null || contains(["public", "internal", "confidential", "restricted"], var.classification)
-    error_message = "The classification value must be public, internal, confidential or restricted."
   }
 }
 
