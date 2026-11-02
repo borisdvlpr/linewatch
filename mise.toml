@@ -24,8 +24,8 @@ description = "Format all Terraform files"
 run = "terraform fmt -recursive"
 
 [tasks.build]
-description = "Build the Lambda functions into live/dev/ingest/.build/<function>/bootstrap"
-dir = "live/dev/ingest/functions"
+description = "Build the Lambda functions into modules/ingest/.build/<function>/bootstrap"
+dir = "modules/ingest/functions"
 env = { GOOS = "linux", GOARCH = "arm64", CGO_ENABLED = "0" }
 # -trimpath and -buildvcs=false keep the binary identical across machines and
 # commits, so source_code_hash only changes when the code does.
@@ -41,9 +41,11 @@ run = [
   "terraform fmt -check -recursive -diff",
   # A separate data directory, like CI's fresh checkout: in a stack already
   # initialised against S3, init -backend=false still needs AWS credentials.
+  # Modules are validated on their own too, because live/dev/studies only sees
+  # the tagged data-workspace version.
   """
   export TF_DATA_DIR=.terraform/check
-  for d in live/account live/dev/ingest; do
+  for d in live/account live/dev/ingest live/dev/studies modules/*; do
     terraform -chdir="$d" init -backend=false -input=false
     terraform -chdir="$d" validate
   done

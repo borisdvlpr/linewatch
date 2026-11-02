@@ -1,6 +1,4 @@
 locals {
-  metric_namespace = "linewatch/dev"
-
   # One entry per line and metric with a threshold, keyed "line-1/temperature_c".
   watched = merge([
     for line_id, line in var.lines : {
@@ -34,13 +32,13 @@ locals {
 resource "aws_cloudwatch_log_metric_filter" "reading" {
   for_each = local.watched
 
-  name           = "${local.name_prefix}-${each.value.line_id}-${each.value.metric}"
-  log_group_name = aws_cloudwatch_log_group.processor.name
+  name           = "${var.name_prefix}-${each.value.line_id}-${each.value.metric}"
+  log_group_name = var.processor_log_group_name
   pattern        = "{ $.line_id = \"${each.value.line_id}\" }"
 
   metric_transformation {
     name       = each.value.metric
-    namespace  = local.metric_namespace
+    namespace  = var.metric_namespace
     value      = "$.${each.value.metric}"
     dimensions = { line_id = "$.line_id" }
   }
@@ -52,7 +50,7 @@ resource "aws_sns_topic" "owner" {
   for_each = local.owner_emails
 
   # SNS topic names allow only letters, digits, hyphens and underscores.
-  name = "${local.name_prefix}-owner-${replace(each.key, "/[^A-Za-z0-9_-]/", "-")}"
+  name = "${var.name_prefix}-owner-${replace(each.key, "/[^A-Za-z0-9_-]/", "-")}"
 }
 
 resource "aws_sns_topic_subscription" "owner" {
@@ -69,7 +67,7 @@ resource "aws_sns_topic_subscription" "owner" {
 resource "aws_cloudwatch_metric_alarm" "line" {
   for_each = local.line_limits
 
-  alarm_name          = "${local.name_prefix}-${each.key}-out-of-spec"
+  alarm_name          = "${var.name_prefix}-${each.key}-out-of-spec"
   alarm_description   = "${each.key} is out of spec. Limits: ${join(", ", [for metric, limit in each.value : "${metric} ${limit}"])}.${var.lines[each.key].owner_email == null ? "" : " Owner: ${var.lines[each.key].owner_email}."}"
   comparison_operator = "GreaterThanThreshold"
   threshold           = 1
@@ -96,7 +94,7 @@ resource "aws_cloudwatch_metric_alarm" "line" {
       id = metric_query.key
 
       metric {
-        namespace   = local.metric_namespace
+        namespace   = var.metric_namespace
         metric_name = metric_query.key
         dimensions  = { line_id = each.key }
         period      = 1800
@@ -109,7 +107,7 @@ resource "aws_cloudwatch_metric_alarm" "line" {
 # Alarm states first, then one graph per watched metric with a line for each
 # watching line's limit. Widgets without x and y are laid out automatically.
 resource "aws_cloudwatch_dashboard" "lines" {
-  dashboard_name = "${local.name_prefix}-lines"
+  dashboard_name = "${var.name_prefix}-lines"
   dashboard_body = jsonencode({
     widgets = concat(
       length(aws_cloudwatch_metric_alarm.line) == 0 ? [] : [{
@@ -127,11 +125,11 @@ resource "aws_cloudwatch_dashboard" "lines" {
         height = 6
         properties = {
           title   = metric
-          region  = var.aws_region
+          region  = data.aws_region.current.region
           view    = "timeSeries"
           stat    = "Maximum"
           period  = 1800
-          metrics = [for pair in values(local.watched) : [local.metric_namespace, metric, "line_id", pair.line_id] if pair.metric == metric]
+          metrics = [for pair in values(local.watched) : [var.metric_namespace, metric, "line_id", pair.line_id] if pair.metric == metric]
           annotations = {
             horizontal = [for pair in values(local.watched) : { label = "${pair.line_id} limit", value = local.line_limits[pair.line_id][metric] } if pair.metric == metric]
           }

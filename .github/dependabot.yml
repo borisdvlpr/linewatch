@@ -20,6 +20,7 @@ updates:
     directories:
       - /live/account
       - /live/dev/ingest
+      - /live/dev/studies
     schedule:
       interval: weekly
     cooldown:

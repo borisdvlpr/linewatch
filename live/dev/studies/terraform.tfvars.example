@@ -1,0 +1,18 @@
+# copy to terraform.tfvars (gitignored) and fill the ARNs of existing IAM users or roles
+analysts = {
+  alice = "arn:aws:iam::123456789012:user/alice"
+  bob   = "arn:aws:iam::123456789012:user/bob"
+}
+
+studies = {
+  trial-001 = {
+    classification = "confidential"
+    analysts       = ["alice"]
+  }
+  trial-002 = {
+    classification = "restricted"
+  }
+}
+
+# Optional: analysts with access to every study.
+lead_analysts = ["bob"]

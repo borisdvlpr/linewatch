@@ -6,12 +6,12 @@ data "archive_file" "processor" {
 }
 
 resource "aws_cloudwatch_log_group" "processor" {
-  name              = "/aws/lambda/${local.name_prefix}-processor"
+  name              = "/aws/lambda/${var.name_prefix}-processor"
   retention_in_days = 3
 }
 
 resource "aws_iam_role" "processor" {
-  name               = "${local.name_prefix}-processor"
+  name               = "${var.name_prefix}-processor"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
@@ -48,7 +48,7 @@ resource "aws_iam_role_policy" "processor" {
 }
 
 resource "aws_lambda_function" "processor" {
-  function_name    = "${local.name_prefix}-processor"
+  function_name    = "${var.name_prefix}-processor"
   role             = aws_iam_role.processor.arn
   runtime          = "provided.al2023"
   architectures    = ["arm64"]
