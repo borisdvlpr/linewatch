@@ -9,6 +9,15 @@ variable "aws_region" {
   }
 }
 
+# const, because init reads it to download the module. Changing it takes
+# another terraform init.
+variable "data_workspace_ref" {
+  description = "Git tag of the data-workspace module, such as modules/data-workspace/v1.0.0."
+  type        = string
+  const       = true
+  default     = "modules/data-workspace/v1.0.0"
+}
+
 variable "analysts" {
   description = "IAM users or roles that can be given access to studies: analyst name to ARN. Each must exist when a study role trusting it is applied."
   type        = map(string)

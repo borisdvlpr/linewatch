@@ -17,7 +17,7 @@ locals {
 }
 
 module "workspace" {
-  source   = "../../../modules/data-workspace"
+  source   = "git::https://github.com/borisdvlpr/linewatch.git//modules/data-workspace?ref=${var.data_workspace_ref}"
   for_each = var.studies
 
   name_prefix    = local.name_prefix
