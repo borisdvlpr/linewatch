@@ -15,7 +15,7 @@ variable "data_workspace_ref" {
   description = "Git tag of the data-workspace module, such as modules/data-workspace/v1.0.0."
   type        = string
   const       = true
-  default     = "modules/data-workspace/v1.0.0"
+  default     = "modules/data-workspace/v1.1.0"
 }
 
 variable "analysts" {

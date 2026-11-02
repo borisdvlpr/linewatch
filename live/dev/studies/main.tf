@@ -20,9 +20,9 @@ module "workspace" {
   source   = "git::https://github.com/borisdvlpr/linewatch.git//modules/data-workspace?ref=${var.data_workspace_ref}"
   for_each = var.studies
 
-  name_prefix    = local.name_prefix
-  study_id       = each.key
-  bucket_arn     = aws_s3_bucket.studies.arn
-  classification = each.value.classification
-  analyst_arns   = [for analyst in local.study_analysts[each.key] : var.analysts[analyst]]
+  name_prefix         = local.name_prefix
+  study_id            = each.key
+  bucket_arn          = aws_s3_bucket.studies.arn
+  data_classification = each.value.classification
+  analyst_arns        = [for analyst in local.study_analysts[each.key] : var.analysts[analyst]]
 }
