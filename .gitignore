@@ -1,6 +1,10 @@
 # Local .terraform directories
 **/.terraform/*
 
+# Lock files from validating a module on its own. The stack that calls a module
+# chooses its provider versions.
+modules/*/.terraform.lock.hcl
+
 # .tfstate files
 *.tfstate
 *.tfstate.*
