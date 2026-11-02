@@ -29,7 +29,12 @@ linewatch/
 ├── live/                  # root modules: one directory = one state file
 │   ├── account/           # account-wide singletons: state bucket, budget
 │   └── dev/
-│       └── ingest/        # alerts topic, landing bucket, readings table, line alarms and dashboard
+│       ├── ingest/        # the dev pipeline and its line monitoring, from the ingest and monitoring modules
+│       └── studies/       # studies bucket and a data workspace per study
+├── modules/               # shared modules, versioned with git tags
+│   ├── ingest/            # landing bucket, readings table, dead-letter queue, Lambda functions and their Go source
+│   ├── monitoring/        # alerts topic, line alarms and dashboard
+│   └── data-workspace/    # one study's IAM role, scoped to its S3 prefix
 └── mise.toml              # pinned Terraform; `mise run check` runs the CI format and validation checks
 ```
 
@@ -55,7 +60,7 @@ Once the state is in the bucket, delete the local `terraform.tfstate`. Then upda
 
 ### Check
 
-Run the same format and validation checks as CI. They need no AWS credentials:
+Run the same format and validation checks as CI, for every stack and every module. They need no AWS credentials, but `live/dev/studies` downloads its module from GitHub:
 
 ```sh
 mise trust
@@ -69,7 +74,7 @@ Apply the stacks in order, `live/account` first, so the budget exists before any
 
 ```sh
 cd live/<stack>
-cp terraform.tfvars.example terraform.tfvars   # fill in the email
+cp terraform.tfvars.example terraform.tfvars   # fill in the emails or analyst ARNs
 terraform init -backend-config=env/eu-central-1.s3.tfbackend -lockfile=readonly
 terraform plan -out=tfplan
 terraform apply tfplan
@@ -106,6 +111,74 @@ aws cloudwatch set-alarm-state --alarm-name linewatch-dev-line-1-out-of-spec \
 
 The line resources use `for_each`, so Terraform tracks each one by name, such as `reading["line-2/reject_rate"]`. With `count` it would track them by number instead: `reading[0]`, `reading[1]`, and so on. Removing `line-1` would then renumber every filter after it, and the plan would show changes to line-2 and line-3 even though only line-1 was removed. With `for_each`, the plan only removes line-1's filters.
 
+### Studies
+
+`live/dev/studies` gives each study an isolated workspace in one shared studies bucket. Each study in the `studies` variable gets:
+
+- The `studies/<study_id>/` prefix of the bucket.
+- An IAM role, `linewatch-dev-study-<study_id>`, that can list, read, write and delete objects only under that prefix.
+- `Study` and `DataClassification` tags on the role. The classification is `public`, `internal`, `confidential` or `restricted`.
+
+Analysts are existing IAM users or roles, named once in `analysts`. A study's role trusts the study's own `analysts` and every name in `lead_analysts`. `terraform output access_matrix` shows who can assume each study's role. IAM checks that a trusted ARN exists only at apply time, so a mistyped ARN plans fine and then fails to apply.
+
+The studies stack keeps its own state, so onboarding a study never plans against the pipeline. To add a study, add it to `studies` in `terraform.tfvars` and apply. The plan adds only that study's role and policy.
+
+To work in a study's workspace, add a profile that assumes its role, with the ARN from `terraform output study_role_arns`:
+
+```ini
+# ~/.aws/config
+[profile trial-001]
+role_arn       = arn:aws:iam::<account-id>:role/linewatch-dev-study-trial-001
+source_profile = <your profile>
+```
+
+```sh
+aws s3 cp results.csv "s3://$(terraform output -raw studies_bucket_name)/studies/trial-001/" --profile trial-001
+```
+
+List with the trailing slash, as in `studies/trial-001/`. Without it, S3 denies the request.
+
+## Modules
+
+The stacks share code through the modules in `modules/`. A module has no provider or backend blocks and sets only minimum versions (`>=`). The stack that calls it pins the exact versions in its own lock file.
+
+`live/dev/ingest` calls its modules by local path, so dev always runs the code in the working tree. `live/dev/studies` downloads `data-workspace` from GitHub at a tag:
+
+```hcl
+source = "git::https://github.com/borisdvlpr/linewatch.git//modules/data-workspace?ref=${var.data_workspace_ref}"
+```
+
+`data_workspace_ref` is a `const` variable, because `terraform init` reads it to download the module. Changing it needs another `init`. Until then, the plan fails with "Module source has changed". A change to the module reaches the studies stack only when this tag is bumped.
+
+### Releasing a module version
+
+Each module has its own versions, tagged `modules/<module>/v<major>.<minor>.<patch>`:
+
+- **Patch:** a fix with no interface change.
+- **Minor:** new inputs or outputs. Existing callers keep working.
+- **Major:** an input or output is removed or changes meaning.
+
+```sh
+git tag -a modules/data-workspace/v2.1.0 -m "data-workspace module v2.1.0"
+git push origin modules/data-workspace/v2.1.0
+```
+
+Push the tag before a stack refers to it. `init` clones from GitHub, and fails on a tag that exists only locally.
+
+### Changing a module's interface
+
+Rename or remove an input or output over two releases, so no caller breaks without a warning first:
+
+1. In a minor release, add the new name, keep accepting the old one, and mark the old one `deprecated`. A caller that still uses it gets a warning naming the replacement. `data-workspace` v1.1.0 did this for `classification` → `data_classification` and `prefix` → `s3_uri`.
+2. Move every caller to the new name, so it plans without warnings.
+3. In the next major release, remove the old name, as `data-workspace` v2.0.0 did.
+
+Terraform refuses `deprecated` on an output of the root module. A module with a deprecated output therefore fails `mise run check`, which validates each module on its own, until the major release removes that output. Warnings for a deprecated output show at `plan`, but not at `validate` when the module uses `for_each`.
+
+### Moving resources into a module
+
+The pipeline and its monitoring moved from `live/dev/ingest` into `modules/ingest` and `modules/monitoring` without being replaced. The stack declared one `moved` block per resource, from the old address to `module.<name>.<address>`. The plan showed only moves, and once they were applied, the blocks were removed.
+
 ## State layout
 
 Each directory under `live/` is one root module with its own state file. Every state file lives in the same S3 bucket, which `live/account` manages, and the stacks differ only in the `key` line of `env/<region>.s3.tfbackend`:
@@ -114,6 +187,7 @@ Each directory under `live/` is one root module with its own state file. Every s
 |---|---|---|
 | `live/account` | `linewatch/account/terraform.tfstate` | account-wide singletons: state bucket, budget |
 | `live/dev/ingest` | `linewatch/dev/ingest/terraform.tfstate` | the dev pipeline: SNS, S3 landing bucket, DynamoDB, CloudWatch alarms and dashboard |
+| `live/dev/studies` | `linewatch/dev/studies/terraform.tfstate` | the studies bucket and each study's IAM role |
 
 A single state file would be simpler. Separate files were chosen anyway, for these reasons:
 
